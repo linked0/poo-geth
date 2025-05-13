@@ -1,0 +1,82 @@
+#!/bin/sh
+if [ -z $1 ]
+then
+    echo "No parameter passed"
+    echo "Usage: ./init testnet 1"
+    echo "Usage: ./init mainnet 1"
+    echo "Usage: ./init testnet-london 1"
+    exit
+else
+    echo "Config: $1"
+fi
+config=$1
+
+if [ -z $2 ]
+then
+    echo "No second parameter passed"
+    exit
+else
+    echo "Node: $2"
+fi
+number=$2
+
+sudo rm -rf $HOME/.pooh/el
+mkdir -p $HOME/.pooh/el
+mkdir $HOME/.pooh/el/geth
+mkdir $HOME/.pooh/el/keystore
+
+genesis_file="genesis.json"
+
+if [ "$config" = "mainnet" ]
+then
+  config_folder="config"
+elif [ "$config" = "pos" ]
+then
+  config_folder="config4pos"
+elif [ "$config" = "devnet" ]
+then
+  config_folder="config"
+  genesis_file="genesis_devnet.json"
+elif [ "$config" = "testnet" ]
+then
+  config_folder="config"
+  genesis_file="genesis_testnet.json"
+elif [ "$config" = "localnet" ]
+then
+  config_folder="config"
+  genesis_file="genesis_localnet.json"
+elif [ "$config" = "testnet-london" ]
+then
+  config_folder="config"
+  genesis_file="genesis_testnet_london.json"
+elif [ "$config" = "console" ]
+then
+  config_folder="config"
+  genesis_file="genesis_testnet_console.json"
+elif [ "$config" = "zksync" ]
+then
+  config_folder="config"
+  genesis_file="genesis_zksync.json"
+else
+  echo "Invalid config parameter"
+  exit
+fi
+echo "Configure folder: $config_folder"
+echo "Genesis file: $genesis_file"
+
+cp -rf ./$config_folder/el/template/node$number/* $HOME/.pooh/el
+
+docker run -it \
+  -v $HOME/.pooh/el:/data \
+  -v ./$config_folder/el:/config \
+  --name pow-node --rm \
+  linked0/poohgeth:latest \
+  --datadir=/data \
+  init \
+  /config/$genesis_file
+
+
+if [ $number -ne 0 ]
+then
+  cp -f ./$config_folder/el/nodekey/nodekey$number $HOME/.pooh/el/geth/nodekey
+fi

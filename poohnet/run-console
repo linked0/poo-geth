@@ -1,0 +1,21 @@
+#!/bin/sh
+
+sudo geth \
+--datadir=$HOME/.pooh/el \
+--networkid=12301 \
+--port=30303 \
+--rpc.allow-unprotected-txs \
+--rpc.enabledeprecatedpersonal \
+--http \
+--http.addr="0.0.0.0" \
+--http.port=8545 \
+--http.corsdomain="*" \
+--http.api="personal,eth,net,txpool,web3" \
+--http.vhosts="*" \
+--ws \
+--ws.port=8546 \
+--ws.api="personal,eth,net,txpool,web3" \
+--ws.origins="*" \
+--nodiscover \
+--allow-insecure-unlock \
+console

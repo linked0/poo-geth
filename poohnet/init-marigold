@@ -1,0 +1,59 @@
+#!/bin/sh
+if [ -z $1 ]
+then
+    echo "No parameter passed"
+    echo "Usage: ./init-marigold mainnet 1"
+    echo "Usage: ./init-marigold localnet 1"
+    exit
+else
+    echo "Config: $1"
+fi
+config=$1
+
+if [ -z $2 ]
+then
+    echo "No second parameter passed"
+    exit
+else
+    echo "Node: $2"
+fi
+number=$2
+
+sudo rm -rf $HOME/.marigold/el
+mkdir -p $HOME/.marigold/el
+mkdir $HOME/.marigold/el/geth
+mkdir $HOME/.marigold/el/keystore
+
+genesis_file="genesis.json"
+
+if [ "$config" = "mainnet" ]
+then
+  config_folder="config"
+  genesis_file="genesis_marigold.json"
+elif [ "$config" = "localnet" ]
+then
+  config_folder="config"
+  genesis_file="genesis_marigold_localnet.json"
+else
+  echo "Invalid config parameter"
+  exit
+fi
+echo "Configure folder: $config_folder"
+echo "Genesis file: $genesis_file"
+
+cp -rf ./$config_folder/el/template/node$number/* $HOME/.marigold/el
+
+docker run -it \
+  -v $HOME/.marigold/el:/data \
+  -v ./$config_folder/el:/config \
+  --name pow-node --rm \
+  linked0/poohgeth:latest \
+  --datadir=/data \
+  init \
+  /config/$genesis_file
+
+
+if [ $number -ne 0 ]
+then
+  cp -f ./$config_folder/el/nodekey/nodekey$number $HOME/.marigold/el/geth/nodekey
+fi

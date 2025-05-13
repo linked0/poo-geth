@@ -1,3 +1,6 @@
+## PooNet
+Go to PooNet [README](./poohnet/README.md) for compile and run the network.
+
 ## Go Ethereum
 
 Golang execution layer implementation of the Ethereum protocol.

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+go run build/ci.go install -static ./cmd/geth
+sudo cp ./build/bin/geth /usr/local/bin/

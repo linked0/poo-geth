@@ -1,0 +1,35 @@
+#!/bin/sh
+if [ -z $1 ]
+then
+    echo "No parameter passed"
+    echo "Usage: ./update fund"
+    echo "Usage: ./update merge"
+    exit
+else
+    echo "Config: $1"
+fi
+config=$1
+
+if [ "$config" = "fund" ]
+then
+  config_folder="config"
+  genesis_file="genesis_fund_testnet.json"
+elif [ "$config" = "merge" ]
+then
+  config_folder="config4pos"
+  genesis_file="genesis_merge.json"
+else
+  echo "Invalid config parameter"
+  exit
+fi
+echo "Configure folder: $config_folder"
+echo "Genesis file: $genesis_file"
+
+docker run -it \
+  -v $HOME/.pooh/el:/data \
+  -v ./$config_folder/el:/config \
+  --name el-node --rm \
+  linked0/poohgeth:latest \
+  --datadir=/data \
+  init \
+  /config/$genesis_file

@@ -1,0 +1,38 @@
+#!/bin/sh
+if [ -z $1 ]
+then
+    echo "No parameter passed"
+    echo "Usage: ./enode mainnet node1"
+    echo "Usage: ./enode testnet node1"
+    echo "Usage: ./enode pos node1"
+    exit
+else
+    echo "Chain: $1"
+fi
+chain=$1
+
+if [ -z $2 ]
+then
+    echo "No second parameter passed"
+    exit
+else
+    echo "Node service: $2"
+fi
+service=$2
+
+if [ "$chain" = "mainnet" ]
+then
+  docker compose -f docker-compose-node.yml up $service -d
+elif [ "$chain" = "testnet" ]
+then
+  docker compose -f docker-compose-node-testnet.yml up $service -d
+elif [ "$chain" = "devnet" ]
+then
+  docker compose -f docker-compose-node-devnet.yml up $service -d
+elif [ "$chain" = "pos" ]
+then
+  docker compose -f docker-compose-node-pos.yml up $service -d
+else
+  echo "Invalid config parameter"
+  exit
+fi
