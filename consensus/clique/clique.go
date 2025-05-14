@@ -33,9 +33,10 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
-	"github.com/ethereum/go-ethereum/core/state"
+	statedb "github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/tracing"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
+	vm "github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
@@ -43,6 +44,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -574,13 +576,26 @@ func (c *Clique) Prepare(chain consensus.ChainHeaderReader, header *types.Header
 
 // Finalize implements consensus.Engine. There is no post-transaction
 // consensus rules in clique, do nothing here.
-func (c *Clique) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state vm.StateDB, body *types.Body) {
-	// No block rewards in PoA, so the state remains as is
+func (c *Clique) Finalize(chain consensus.ChainHeaderReader, header *types.Header, stateDB vm.StateDB, body *types.Body) {
+	if chain.Config().IsBosagora(header.Number) {
+		if header.Number.Cmp(&chain.Config().Bosagora.LastCommonsBudgetRewardBlock) < 0 {
+			amount, overflow := uint256.FromBig(&chain.Config().Bosagora.CommonsBudgetReward)
+			if overflow {
+				// handle overflow case
+			}
+			stateDB.AddBalance(chain.Config().Bosagora.CommonsBudget, amount, tracing.BalanceIncreaseRewardTransactionFee)
+		}
+	}
+
+	if sdb, ok := stateDB.(*statedb.StateDB); ok {
+		header.Root = sdb.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+	}
+	header.UncleHash = types.CalcUncleHash(nil)
 }
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
-func (c *Clique) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
+func (c *Clique) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *statedb.StateDB, body *types.Body, receipts []*types.Receipt) (*types.Block, error) {
 	if len(body.Withdrawals) > 0 {
 		return nil, errors.New("clique does not support withdrawals")
 	}

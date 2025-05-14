@@ -186,6 +186,8 @@ var (
 		VerkleTime:              nil,
 		Ethash:                  new(EthashConfig),
 		Clique:                  nil,
+		BosagoraBlock:           nil,
+		Bosagora:                &BosagoraConfig{common.Address{}, *common.Big0, *common.Big0},
 	}
 
 	AllDevChainProtocolChanges = &ChainConfig{
@@ -241,6 +243,8 @@ var (
 		TerminalTotalDifficulty: big.NewInt(math.MaxInt64),
 		Ethash:                  nil,
 		Clique:                  &CliqueConfig{Period: 0, Epoch: 30000},
+		BosagoraBlock:           nil,
+		Bosagora:                &BosagoraConfig{common.Address{}, *common.Big0, *common.Big0},
 	}
 
 	// TestChainConfig contains every protocol change (EIPs) introduced
@@ -271,6 +275,8 @@ var (
 		TerminalTotalDifficulty: big.NewInt(math.MaxInt64),
 		Ethash:                  new(EthashConfig),
 		Clique:                  nil,
+		BosagoraBlock:           nil,
+		Bosagora:                &BosagoraConfig{common.Address{}, *common.Big0, *common.Big0},
 	}
 
 	// MergedTestChainConfig contains every protocol change (EIPs) introduced
@@ -335,6 +341,8 @@ var (
 		TerminalTotalDifficulty: big.NewInt(math.MaxInt64),
 		Ethash:                  new(EthashConfig),
 		Clique:                  nil,
+		BosagoraBlock:           nil,
+		Bosagora:                &BosagoraConfig{common.Address{}, *common.Big0, *common.Big0},
 	}
 	TestRules = TestChainConfig.Rules(new(big.Int), false, 0)
 )
@@ -411,6 +419,8 @@ type ChainConfig struct {
 	OsakaTime    *uint64 `json:"osakaTime,omitempty"`    // Osaka switch time (nil = no fork, 0 = already on osaka)
 	VerkleTime   *uint64 `json:"verkleTime,omitempty"`   // Verkle switch time (nil = no fork, 0 = already on verkle)
 
+	BosagoraBlock *big.Int `json:"bosagoraBlock,omitempty"` // Commons budget activation block (nil = no fork, 0 = already activated)
+
 	// TerminalTotalDifficulty is the amount of total difficulty reached by
 	// the network that triggers the consensus upgrade.
 	TerminalTotalDifficulty *big.Int `json:"terminalTotalDifficulty,omitempty"`
@@ -434,6 +444,9 @@ type ChainConfig struct {
 	Ethash             *EthashConfig       `json:"ethash,omitempty"`
 	Clique             *CliqueConfig       `json:"clique,omitempty"`
 	BlobScheduleConfig *BlobScheduleConfig `json:"blobSchedule,omitempty"`
+
+	// Bosagora specific consensus parameters
+	Bosagora *BosagoraConfig `json:"bosagora,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -455,6 +468,13 @@ func (c CliqueConfig) String() string {
 	return fmt.Sprintf("clique(period: %d, epoch: %d)", c.Period, c.Epoch)
 }
 
+type BosagoraConfig struct {
+	// Commons budget
+	CommonsBudget                common.Address `json:"commonsBudget"`                // commons budget address (This will most likely be the Address of a Smart Contract)
+	CommonsBudgetReward          big.Int        `json:"commonsBudgetReward"`          // amount of coins rewarded to the commons budget per block
+	LastCommonsBudgetRewardBlock big.Int        `json:"lastCommonsBudgetRewardBlock"` // last block to reward the commons budget
+}
+
 // Description returns a human-readable description of ChainConfig.
 func (c *ChainConfig) Description() string {
 	var banner string
@@ -462,7 +482,21 @@ func (c *ChainConfig) Description() string {
 	// Create some basic network config output
 	network := NetworkNames[c.ChainID.String()]
 	if network == "" {
-		network = "unknown"
+		if c.ChainID.String() == "7212301" {
+			network = "POONET MAINNET"
+		} else if c.ChainID.String() == "7212302" {
+			network = "POONET TESTNET"
+		} else if c.ChainID.String() == "7212303" {
+			network = "POONET DEVNET"
+		} else if c.ChainID.String() == "7212309" {
+			network = "POONET LOCALNET"
+		} else if c.ChainID.String() == "12301" {
+			network = "MARIGOLD MAINNET"
+		} else if c.ChainID.String() == "12309" {
+			network = "MARIGOLD LOCALNET"
+		} else {
+			network = "unknown"
+		}
 	}
 	banner += fmt.Sprintf("Chain ID:  %v (%s)\n", c.ChainID, network)
 	switch {
@@ -618,6 +652,11 @@ func (c *ChainConfig) IsArrowGlacier(num *big.Int) bool {
 // IsGrayGlacier returns whether num is either equal to the Gray Glacier (EIP-5133) fork block or greater.
 func (c *ChainConfig) IsGrayGlacier(num *big.Int) bool {
 	return isBlockForked(c.GrayGlacierBlock, num)
+}
+
+// IsBosagora returns whether num is either equal to the Bosagora changes are activated.
+func (c *ChainConfig) IsBosagora(num *big.Int) bool {
+	return isBlockForked(c.BosagoraBlock, num)
 }
 
 // IsTerminalPoWBlock returns whether the given block is the last block of PoW stage.

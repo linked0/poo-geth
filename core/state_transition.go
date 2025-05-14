@@ -533,7 +533,8 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 	st.returnGas()
 
 	effectiveTip := msg.GasPrice
-	if rules.IsLondon {
+	// stop burning base fees if bosagora
+	if rules.IsLondon && !st.evm.ChainConfig().IsBosagora(st.evm.Context.BlockNumber) {
 		effectiveTip = new(big.Int).Sub(msg.GasFeeCap, st.evm.Context.BaseFee)
 		if effectiveTip.Cmp(msg.GasTipCap) > 0 {
 			effectiveTip = msg.GasTipCap
@@ -546,12 +547,23 @@ func (st *stateTransition) execute() (*ExecutionResult, error) {
 		// are 0. This avoids a negative effectiveTip being applied to
 		// the coinbase when simulating calls.
 	} else {
-		fee := new(uint256.Int).SetUint64(st.gasUsed())
-		fee.Mul(fee, effectiveTipU256)
-		st.state.AddBalance(st.evm.Context.Coinbase, fee, tracing.BalanceIncreaseRewardTransactionFee)
+		txFee := new(uint256.Int).SetUint64(st.gasUsed())
+		txFee.Mul(txFee, effectiveTipU256)
+
+		if st.evm.ChainConfig().IsBosagora(st.evm.Context.BlockNumber) {
+			commonsCut := new(big.Int).Div(new(big.Int).Mul(big.NewInt(30), txFee.ToBig()), big.NewInt(100))
+			amount, overflow := uint256.FromBig(commonsCut)
+			if overflow {
+				// handle overflow case
+			} // %30 of txFee
+			st.state.AddBalance(st.evm.Context.Coinbase, txFee.Sub(txFee, amount), tracing.BalanceIncreaseRewardTransactionFee)   // total - commons cut
+			st.state.AddBalance(st.evm.ChainConfig().Bosagora.CommonsBudget, amount, tracing.BalanceIncreaseRewardTransactionFee) // commons cut
+		} else {
+			st.state.AddBalance(st.evm.Context.Coinbase, txFee, tracing.BalanceIncreaseRewardTransactionFee)
+		}
 
 		// add the coinbase to the witness iff the fee is greater than 0
-		if rules.IsEIP4762 && fee.Sign() != 0 {
+		if rules.IsEIP4762 && txFee.Sign() != 0 {
 			st.evm.AccessEvents.AddAccount(st.evm.Context.Coinbase, true)
 		}
 	}
